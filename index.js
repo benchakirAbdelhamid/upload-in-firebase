@@ -181,8 +181,6 @@
 //   }
 // });
 
-
-
 // vedio youtube 1 = nice upload img in firebase and get url image from firebase
 
 const express = require("express");
@@ -198,20 +196,20 @@ const {
   uploadBytesResumable,
   ref,
   getDownloadURL,
-  deleteObject
+  deleteObject,
+  uploadBytes,
 } = require("firebase/storage");
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.apiKey,
-  authDomain: process.env.authDomain ,
-  projectId: process.env.projectId ,
-  storageBucket: process.env.storageBucket ,
-  messagingSenderId: process.env.messagingSenderId ,
-  appId: process.env.appId  ,
+  authDomain: process.env.authDomain,
+  projectId: process.env.projectId,
+  storageBucket: process.env.storageBucket,
+  messagingSenderId: process.env.messagingSenderId,
+  appId: process.env.appId,
 };
 firebase.initializeApp(firebaseConfig);
-
 
 const upload = multer({ Storage: multer.memoryStorage() });
 
@@ -232,48 +230,95 @@ app.get("/", (req, res) => {
 app.post("/", upload.single("filename"), async (req, res) => {
   try {
     const storageFB = getStorage();
-    const dateTime = giveCurrentDateTime() ;
+    const dateTime = giveCurrentDateTime();
     // const fileName = `images/${dateTime}`
-    const fileName = `${req.file.originalname + "_" + dateTime}`
-    const storageRef = ref(storageFB, `images/${fileName}`)
+    const fileName = `${req.file.originalname + "_" + dateTime}`;
+    const storageRef = ref(storageFB, `images/${fileName}`);
     // Create the metadata including the content type
     const metadata = {
-        contentType: req.file.mimetype,
-    }
+      contentType: req.file.mimetype,
+    };
     // Upload the file in the bucket storage
-    const snapshot = await uploadBytesResumable(storageRef, req.file.buffer, metadata);
+    const snapshot = await uploadBytesResumable(
+      storageRef,
+      req.file.buffer,
+      metadata
+    );
     // Grab the public url
     const downloadUrl = await getDownloadURL(snapshot.ref);
-    res.json({ message: "File successfully uploaded",
-    img_info : req.file,
-    fileName :fileName,
-    upload_Info : snapshot,
-    url :downloadUrl });
+    res.json({
+      message: "File successfully uploaded",
+      img_info: req.file,
+      fileName: fileName,
+      upload_Info: snapshot,
+      url: downloadUrl,
+    });
   } catch (error) {
     console.error("Error uploading file to Firebase Storage:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-const giveCurrentDateTime = ()=>{
-  const today = new Date()
-  const date = today.getFullYear() +"-"+ (today.getMonth()) + '-' + today.getDate();
-  const time = today.getHours()+"-"+today.getMinutes()+"-"+today.getSeconds()
-  const dateTime = date + '_' + time
+const giveCurrentDateTime = () => {
+  const today = new Date();
+  const date =
+    today.getFullYear() + "-" + today.getMonth() + "-" + today.getDate();
+  const time =
+    today.getHours() + "-" + today.getMinutes() + "-" + today.getSeconds();
+  const dateTime = date + "_" + time;
   return dateTime;
-}
+};
 
-app.delete('/images/:imageId',async(req ,res)=>{
+app.delete("/images/:imageId", async (req, res) => {
   try {
     const imageId = req.params.imageId; // Get image ID from URL
 
     const storage = getStorage();
     const fileRef = ref(storage, `images/${imageId}`); // Reference to the file in Firebase Storage
     const deleted = await deleteObject(fileRef); // Delete the file
-    res.json({message : 'deleted img',imageId})
-
+    res.json({ message: "deleted img", imageId });
   } catch (error) {
-    console.error('Error deleting image:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.error("Error deleting image:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
-})
+});
+
+// upload video in firebase
+app.post("/video", upload.single("video"), async (req, res) => {
+  try {
+    if (!req.file) {
+      res.status(400).send("No File Uploaded");
+      return;
+    }
+    const storage = getStorage();
+    const StorageRef = ref(storage, `video/${req.file.originalname}` );
+    const metadata = {
+      contentType: req.file.mimetype,
+      // contentType: "video/mp4",
+    };
+    uploadBytes(StorageRef, req.file.buffer, metadata).then(() => {
+      getDownloadURL(StorageRef)
+        .then((url) => {
+          res.send({ url });
+        })
+        .catch((err) => {
+          res.status(500).send(err);
+        });
+    });
+    // res.json({ message: "upload video" });
+  } catch (error) {}
+});
+
+app.delete("/video/:videoId", async (req, res) => {
+  try {
+    const videoId = req.params.videoId; // Get video ID from URL
+
+    const storage = getStorage();
+    const fileRef = ref(storage, `video/${videoId}`); // Reference to the file in Firebase Storage
+    const deleted = await deleteObject(fileRef); // Delete the file
+    res.json({ message: "deleted video", videoId });
+  } catch (error) {
+    console.error("Error deleting image:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
