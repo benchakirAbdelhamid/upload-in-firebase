@@ -227,32 +227,33 @@ app.get("/", (req, res) => {
   res.json("Firebase storage in cloud");
 });
 
+// upload img in firebase
 app.post("/", upload.single("filename"), async (req, res) => {
   try {
     const storageFB = getStorage();
     const dateTime = giveCurrentDateTime();
-    // const fileName = `images/${dateTime}`
     const fileName = `${req.file.originalname + "_" + dateTime}`;
     const storageRef = ref(storageFB, `images/${fileName}`);
     // Create the metadata including the content type
     const metadata = {
       contentType: req.file.mimetype,
     };
-    // Upload the file in the bucket storage
-    const snapshot = await uploadBytesResumable(
-      storageRef,
-      req.file.buffer,
-      metadata
+    await uploadBytesResumable(storageRef, req.file.buffer, metadata).then(
+      () => {
+        getDownloadURL(storageRef)
+          .then((url) => {
+            res.send({
+              message: "Image successfully uploaded",
+              url,
+              fileName: fileName,
+              img_info: req.file,
+            });
+          })
+          .catch((err) => {
+            res.status(500).send(err);
+          });
+      }
     );
-    // Grab the public url
-    const downloadUrl = await getDownloadURL(snapshot.ref);
-    res.json({
-      message: "File successfully uploaded",
-      img_info: req.file,
-      fileName: fileName,
-      upload_Info: snapshot,
-      url: downloadUrl,
-    });
   } catch (error) {
     console.error("Error uploading file to Firebase Storage:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -291,15 +292,21 @@ app.post("/video", upload.single("video"), async (req, res) => {
       return;
     }
     const storage = getStorage();
-    const StorageRef = ref(storage, `video/${req.file.originalname}` );
+    const fileName = `${req.file.originalname}`
+    const StorageRef = ref(storage, `video/${fileName}`);
     const metadata = {
       contentType: req.file.mimetype,
       // contentType: "video/mp4",
     };
-    uploadBytes(StorageRef, req.file.buffer, metadata).then(() => {
+    await uploadBytes(StorageRef, req.file.buffer, metadata).then(() => {
       getDownloadURL(StorageRef)
         .then((url) => {
-          res.send({ url });
+          res.send({
+            message: "video successfully uploaded",
+            url,
+            fileName,
+            video_info: req.file.mimetype,
+          });
         })
         .catch((err) => {
           res.status(500).send(err);
@@ -317,6 +324,52 @@ app.delete("/video/:videoId", async (req, res) => {
     const fileRef = ref(storage, `video/${videoId}`); // Reference to the file in Firebase Storage
     const deleted = await deleteObject(fileRef); // Delete the file
     res.json({ message: "deleted video", videoId });
+  } catch (error) {
+    console.error("Error deleting image:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// upload pdf
+
+app.post("/pdf", upload.single("pdf"), async (req, res) => {
+  try {
+    if (!req.file) {
+      res.status(400).send("No File Uploaded");
+      return;
+    }
+    const storage = getStorage();
+    const fileName = `${req.file.originalname}`
+    const StorageRef = ref(storage, `pdf/${fileName}`);
+    const metadata = {
+      contentType: req.file.mimetype,
+      // contentType: "application/pdf",
+    };
+    await uploadBytes(StorageRef, req.file.buffer, metadata).then(() => {
+      getDownloadURL(StorageRef)
+        .then((url) => {
+          res.send({
+            message: "pdf successfully uploaded",
+            url,
+            fileName,
+            video_info: req.file.mimetype,
+          });
+        })
+        .catch((err) => {
+          res.status(500).send(err);
+        });
+    });
+    // res.json({ message: "upload video" });
+  } catch (error) {}
+});
+app.delete("/pdf/:pdfId", async (req, res) => {
+  try {
+    const pdfId = req.params.pdfId; // Get video ID from URL
+
+    const storage = getStorage();
+    const fileRef = ref(storage, `pdf/${pdfId}`); // Reference to the file in Firebase Storage
+    const deleted = await deleteObject(fileRef); // Delete the file
+    res.json({ message: "deleted pdf", pdfId });
   } catch (error) {
     console.error("Error deleting image:", error);
     res.status(500).json({ error: "Internal Server Error" });
