@@ -226,14 +226,14 @@ startServer();
 app.get("/", (req, res) => {
   res.json("Firebase storage in cloud");
 });
+const storage = getStorage();
 
 // upload img in firebase
 app.post("/", upload.single("filename"), async (req, res) => {
   try {
-    const storageFB = getStorage();
     const dateTime = giveCurrentDateTime();
     const fileName = `${req.file.originalname + "_" + dateTime}`;
-    const storageRef = ref(storageFB, `images/${fileName}`);
+    const storageRef = ref(storage, `images/${fileName}`);
     // Create the metadata including the content type
     const metadata = {
       contentType: req.file.mimetype,
@@ -273,13 +273,10 @@ const giveCurrentDateTime = () => {
 app.delete("/images/:imageId", async (req, res) => {
   try {
     const imageId = req.params.imageId; // Get image ID from URL
-
-    const storage = getStorage();
     const fileRef = ref(storage, `images/${imageId}`); // Reference to the file in Firebase Storage
-    const deleted = await deleteObject(fileRef); // Delete the file
-    res.json({ message: "deleted img", imageId });
+    await deleteObject(fileRef) // Delete the file
+    res.json({ message: "Image deleted successfully", imageId });
   } catch (error) {
-    console.error("Error deleting image:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -291,7 +288,6 @@ app.post("/video", upload.single("video"), async (req, res) => {
       res.status(400).send("No File Uploaded");
       return;
     }
-    const storage = getStorage();
     const fileName = `${req.file.originalname}`
     const StorageRef = ref(storage, `video/${fileName}`);
     const metadata = {
@@ -319,10 +315,8 @@ app.post("/video", upload.single("video"), async (req, res) => {
 app.delete("/video/:videoId", async (req, res) => {
   try {
     const videoId = req.params.videoId; // Get video ID from URL
-
-    const storage = getStorage();
     const fileRef = ref(storage, `video/${videoId}`); // Reference to the file in Firebase Storage
-    const deleted = await deleteObject(fileRef); // Delete the file
+    await deleteObject(fileRef); // Delete the file
     res.json({ message: "deleted video", videoId });
   } catch (error) {
     console.error("Error deleting image:", error);
@@ -338,19 +332,19 @@ app.post("/pdf", upload.single("pdf"), async (req, res) => {
       res.status(400).send("No File Uploaded");
       return;
     }
-    const storage = getStorage();
     const fileName = `${req.file.originalname}`
     const StorageRef = ref(storage, `pdf/${fileName}`);
     const metadata = {
       contentType: req.file.mimetype,
       // contentType: "application/pdf",
     };
-    await uploadBytes(StorageRef, req.file.buffer, metadata).then(() => {
+    await uploadBytes(StorageRef, req.file.buffer, metadata).then((snapshot) => {
       getDownloadURL(StorageRef)
         .then((url) => {
           res.send({
             message: "pdf successfully uploaded",
             url,
+            snapshot,
             fileName,
             video_info: req.file.mimetype,
           });
@@ -365,10 +359,8 @@ app.post("/pdf", upload.single("pdf"), async (req, res) => {
 app.delete("/pdf/:pdfId", async (req, res) => {
   try {
     const pdfId = req.params.pdfId; // Get video ID from URL
-
-    const storage = getStorage();
     const fileRef = ref(storage, `pdf/${pdfId}`); // Reference to the file in Firebase Storage
-    const deleted = await deleteObject(fileRef); // Delete the file
+    await deleteObject(fileRef); // Delete the file
     res.json({ message: "deleted pdf", pdfId });
   } catch (error) {
     console.error("Error deleting image:", error);
